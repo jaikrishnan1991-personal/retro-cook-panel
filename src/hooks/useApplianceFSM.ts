@@ -93,7 +93,7 @@ const getMode = (id: string | null): ApplianceMode | null =>
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-const MANUAL_FIELDS: ManualField[] = ["A_TEMP", "A_TIME", "B_TEMP", "B_TIME"];
+const MANUAL_FIELDS: ManualField[] = ["A_ON", "A_TEMP", "A_TIME", "B_ON", "B_TEMP", "B_TIME"];
 const AUTO_FIELDS: AutoField[] = ["QTY", "THICK", "OIL"];
 
 // Derive zone display from per-zone enabled-ness (timeSec > 0)
@@ -199,19 +199,34 @@ function reducer(s: State, a: Action): State {
             const tempR = mode.ranges?.temp ?? [80, 300, 5];
             const timeR = mode.ranges?.timeSec ?? [15, 5985, 15];
             const f = s.manualField;
+            const toggleZone = (z: typeof s.zoneA) => {
+              if (z.timeSec > 0) {
+                // turn OFF, remember last
+                return { ...z, lastTimeSec: z.timeSec, timeSec: 0 };
+              }
+              // turn ON, restore last (or default)
+              const restore = z.lastTimeSec > 0 ? z.lastTimeSec : (mode.defaults.timeSec ?? 480);
+              return { ...z, timeSec: restore };
+            };
+            if (f === "A_ON") {
+              const zA = toggleZone(s.zoneA);
+              return { ...s, zoneA: zA, zone: deriveZone({ ...s, zoneA: zA }) };
+            }
+            if (f === "B_ON") {
+              const zB = toggleZone(s.zoneB);
+              return { ...s, zoneB: zB, zone: deriveZone({ ...s, zoneB: zB }) };
+            }
             if (f === "A_TEMP") return { ...s, zoneA: { ...s.zoneA, temp: clamp(s.zoneA.temp + dir * tempR[2], tempR[0], tempR[1]) } };
             if (f === "A_TIME") {
-              const allowZero = true;
-              const min = allowZero ? 0 : timeR[0];
-              const next = clamp(s.zoneA.timeSec + dir * timeR[2], min, timeR[1]);
-              const nz = next < timeR[0] && next !== 0 ? 0 : next;
-              return { ...s, zoneA: { ...s.zoneA, timeSec: nz }, zone: deriveZone({ ...s, zoneA: { ...s.zoneA, timeSec: nz } }) };
+              if (s.zoneA.timeSec === 0) return s; // OFF — must toggle on first
+              const next = clamp(s.zoneA.timeSec + dir * timeR[2], timeR[0], timeR[1]);
+              return { ...s, zoneA: { ...s.zoneA, timeSec: next, lastTimeSec: next } };
             }
             if (f === "B_TEMP") return { ...s, zoneB: { ...s.zoneB, temp: clamp(s.zoneB.temp + dir * tempR[2], tempR[0], tempR[1]) } };
             if (f === "B_TIME") {
-              const next = clamp(s.zoneB.timeSec + dir * timeR[2], 0, timeR[1]);
-              const nz = next < timeR[0] && next !== 0 ? 0 : next;
-              return { ...s, zoneB: { ...s.zoneB, timeSec: nz }, zone: deriveZone({ ...s, zoneB: { ...s.zoneB, timeSec: nz } }) };
+              if (s.zoneB.timeSec === 0) return s;
+              const next = clamp(s.zoneB.timeSec + dir * timeR[2], timeR[0], timeR[1]);
+              return { ...s, zoneB: { ...s.zoneB, timeSec: next, lastTimeSec: next } };
             }
             return s;
           }
@@ -257,15 +272,16 @@ function reducer(s: State, a: Action): State {
           if (s.state === "MENU") {
             const mode = MODES[s.cursorIndex];
             const isAuto = mode.kind === "AUTO";
+            const t = mode.defaults.timeSec ?? 480;
             return {
               ...s,
               selectedModeId: mode.id,
-              zoneA: { temp: mode.defaults.temp ?? 220, timeSec: mode.defaults.timeSec ?? 480 },
-              zoneB: { temp: mode.defaults.temp ?? 220, timeSec: mode.defaults.timeSec ?? 480 },
+              zoneA: { temp: mode.defaults.temp ?? 220, timeSec: t, lastTimeSec: t },
+              zoneB: { temp: mode.defaults.temp ?? 220, timeSec: t, lastTimeSec: t },
               quantity: mode.defaults.quantity ?? s.quantity,
               thickness: mode.defaults.thickness ?? s.thickness,
               oil: mode.defaults.oil ?? s.oil,
-              manualField: "A_TEMP",
+              manualField: "A_ON",
               autoField: "QTY",
               zone: "BOTH",
               state: isAuto ? "AUTO_SETUP" : "MANUAL_SETUP",
