@@ -30,11 +30,15 @@ const PixelButtonGuide = ({ label }: { label: string }) => (
 );
 
 export const BootView = ({ progress }: { progress: number }) => (
-  <div className="h-full flex flex-col items-center justify-center font-pixel gap-1">
-    <span className="text-[16px]">IoT APPLIANCE STARTING...</span>
-    <div className="w-[60%] h-2 border border-lcd-pixel">
+  <div className="h-full flex flex-col items-center justify-center font-pixel gap-0.5">
+    <div className="flex items-start leading-none">
+      <span className="text-[28px] tracking-wider">EvoChef</span>
+      <span className="text-[10px] mt-0.5 ml-0.5">®</span>
+    </div>
+    <span className="text-[11px] opacity-80">IoT APPLIANCE STARTING...</span>
+    <div className="w-[55%] h-2 border border-lcd-pixel mt-0.5">
       <div className="h-full bg-lcd-pixel" style={{ width: `${progress}%` }} />
     </div>
-    <span className="text-[10px] opacity-70">FIRMWARE v1.0.0 — INITIALIZING</span>
+    <span className="text-[10px] opacity-70">FIRMWARE v1.0.0 · WIFI: EvoChef Office</span>
   </div>
 );

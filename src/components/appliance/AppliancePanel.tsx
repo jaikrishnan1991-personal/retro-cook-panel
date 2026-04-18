@@ -67,10 +67,19 @@ export const AppliancePanel = ({ onApiReady }: Props) => {
                   quantity={state.quantity}
                   thickness={state.thickness}
                   oil={state.oil}
+                  zone={state.zone}
+                  field={state.autoField}
                 />
               )}
               {state.state === "MANUAL_SETUP" && mode && (
-                <SetupView kind="MANUAL" mode={mode} temp={state.temp} timeSec={state.timeSec} />
+                <SetupView
+                  kind="MANUAL"
+                  mode={mode}
+                  temp={state.temp}
+                  timeSec={state.timeSec}
+                  zone={state.zone}
+                  field={state.manualField}
+                />
               )}
               {(state.state === "RUNNING" || state.state === "PAUSED" || state.state === "DONE") && mode && (
                 <RunView
