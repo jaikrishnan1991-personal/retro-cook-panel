@@ -10,13 +10,14 @@ import {
   Zone,
 } from "@/lib/appliance-types";
 
-// Manual setup focus: 4 fields total — Zone A temp/time, Zone B temp/time
-export type ManualField = "A_TEMP" | "A_TIME" | "B_TEMP" | "B_TIME";
+// Manual setup focus: per-zone ON toggle + temp + time
+export type ManualField = "A_ON" | "A_TEMP" | "A_TIME" | "B_ON" | "B_TEMP" | "B_TIME";
 export type AutoField = "QTY" | "THICK" | "OIL";
 
 interface ZoneParams {
   temp: number;
   timeSec: number;
+  lastTimeSec: number; // remembered so toggling OFF→ON restores
 }
 
 interface State {
