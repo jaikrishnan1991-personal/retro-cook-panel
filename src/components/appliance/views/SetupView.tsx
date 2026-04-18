@@ -50,6 +50,7 @@ export const SetupView = (props: Props) => {
           on={aOn}
           temp={zoneA.temp}
           timeSec={zoneA.timeSec}
+          onActive={field === "A_ON"}
           tempActive={field === "A_TEMP"}
           timeActive={field === "A_TIME"}
         />
@@ -60,6 +61,7 @@ export const SetupView = (props: Props) => {
           on={bOn}
           temp={zoneB.temp}
           timeSec={zoneB.timeSec}
+          onActive={field === "B_ON"}
           tempActive={field === "B_TEMP"}
           timeActive={field === "B_TIME"}
         />
@@ -95,6 +97,7 @@ const ZoneCol = ({
   on,
   temp,
   timeSec,
+  onActive,
   tempActive,
   timeActive,
 }: {
@@ -102,14 +105,22 @@ const ZoneCol = ({
   on: boolean;
   temp: number;
   timeSec: number;
+  onActive: boolean;
   tempActive: boolean;
   timeActive: boolean;
 }) => (
-  <div className={`flex flex-col items-center justify-center px-1 ${on ? "" : "opacity-60"}`}>
+  <div className={`flex flex-col items-center justify-center px-1 ${on ? "" : "opacity-70"}`}>
     <div className="flex items-center gap-1 leading-none">
       <PlateIcon size={10} active={on} />
       <span className="text-[10px]">{label}</span>
-      <span className="text-[9px] opacity-70">{on ? "ON" : "OFF"}</span>
+      <span
+        className={`text-[9px] px-1 rounded-sm ${
+          onActive ? "outline outline-1 outline-lcd-pixel lcd-blink" : "opacity-80"
+        }`}
+        title="▲▼ to toggle ON/OFF"
+      >
+        {on ? "ON" : "OFF"}
+      </span>
     </div>
     <div className="flex items-center gap-2 mt-0.5">
       <Param label="TEMP" value={`${temp}°`} active={tempActive} compact />
