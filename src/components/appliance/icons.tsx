@@ -249,6 +249,45 @@ export const HotdogIcon = (props: IconProps) =>
     props,
   );
 
+export const GrillIcon = (props: IconProps) =>
+  foodWrap(
+    <>
+      {/* grill grates */}
+      <Pixel x={2} y={4} w={20} h={1} />
+      <Pixel x={2} y={7} w={20} h={1} />
+      <Pixel x={2} y={10} w={20} h={1} />
+      {/* food bumps */}
+      <Pixel x={5} y={5} w={3} h={2} />
+      <Pixel x={11} y={5} w={4} h={2} />
+      <Pixel x={17} y={5} w={3} h={2} />
+      <Pixel x={4} y={8} w={4} h={2} />
+      <Pixel x={12} y={8} w={3} h={2} />
+      <Pixel x={17} y={8} w={3} h={2} />
+      {/* legs */}
+      <Pixel x={3} y={11} w={1} h={3} />
+      <Pixel x={20} y={11} w={1} h={3} />
+    </>,
+    props,
+  );
+
+export const PlateIcon = ({ active = true, ...props }: IconProps & { active?: boolean }) =>
+  wrap(
+    <>
+      <rect x={1} y={4} width={14} height={2} fill="currentColor" />
+      <rect x={1} y={10} width={14} height={2} fill="currentColor" />
+      {active && (
+        <>
+          {/* heat waves */}
+          <Pixel x={3} y={7} w={2} h={1} />
+          <Pixel x={6} y={8} w={2} h={1} />
+          <Pixel x={9} y={7} w={2} h={1} />
+          <Pixel x={12} y={8} w={2} h={1} />
+        </>
+      )}
+    </>,
+    props,
+  );
+
 export const FOOD_ICON_MAP: Record<string, (p: IconProps) => JSX.Element> = {
   dosa: DosaIcon,
   crepe: CrepeIcon,
@@ -258,6 +297,7 @@ export const FOOD_ICON_MAP: Record<string, (p: IconProps) => JSX.Element> = {
   fish: FishIcon,
   sandwich: SandwichIcon,
   hotdog: HotdogIcon,
+  grill: GrillIcon,
 };
 
 /* Arrow / chevron */

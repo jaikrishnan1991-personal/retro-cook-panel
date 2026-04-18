@@ -1,13 +1,12 @@
-import { ApplianceMode, Zone } from "@/lib/appliance-types";
-import { FOOD_ICON_MAP } from "../icons";
+import { ApplianceMode, OIL_LABELS } from "@/lib/appliance-types";
+import { FOOD_ICON_MAP, PlateIcon } from "../icons";
 import { ManualField, AutoField } from "@/hooks/useApplianceFSM";
 
 interface ManualProps {
   kind: "MANUAL";
   mode: ApplianceMode;
-  temp: number;
-  timeSec: number;
-  zone: Zone;
+  zoneA: { temp: number; timeSec: number };
+  zoneB: { temp: number; timeSec: number };
   field: ManualField;
 }
 
@@ -17,7 +16,6 @@ interface AutoProps {
   quantity: number;
   thickness: number;
   oil: number;
-  zone: Zone;
   field: AutoField;
 }
 
@@ -29,84 +27,117 @@ const fmtTime = (s: number) => {
   return `${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
 };
 
-const zoneLabel = (z: Zone) => (z === "BOTH" ? "A+B" : z);
-
 export const SetupView = (props: Props) => {
   const Icon = FOOD_ICON_MAP[props.mode.icon];
-  const isLockedZone = props.kind === "AUTO" && (props.mode.id === "dosa" || props.mode.id === "crepe");
 
-  return (
-    <div className="h-full flex items-stretch px-2 py-1 gap-2">
-      <div className="flex flex-col items-center justify-center w-[64px] border-r border-lcd-pixel/30 pr-2">
-        <Icon size={24} />
-        <span className="font-pixel text-[13px] leading-none mt-1 uppercase">{props.mode.name}</span>
-        <span className="font-pixel text-[9px] leading-none mt-0.5 opacity-70">▲▼ FIELD</span>
+  if (props.kind === "MANUAL") {
+    const { zoneA, zoneB, field } = props;
+    const aOn = zoneA.timeSec > 0;
+    const bOn = zoneB.timeSec > 0;
+    return (
+      <div className="h-full grid grid-cols-[34%_33%_33%] gap-1 px-1 py-0.5 font-pixel">
+        {/* Col 1: Mode context */}
+        <div className="flex flex-col items-center justify-center border-r border-lcd-pixel/30 pr-1">
+          <span className="text-[9px] leading-none opacity-70">MODE</span>
+          <Icon size={20} />
+          <span className="text-[12px] leading-none mt-0.5 uppercase">{props.mode.name}</span>
+          <span className="text-[8px] leading-none mt-1 opacity-70">◀▶ FIELD · ▲▼ ADJ</span>
+        </div>
+
+        {/* Col 2: Zone A */}
+        <ZoneCol
+          label="ZONE A"
+          on={aOn}
+          temp={zoneA.temp}
+          timeSec={zoneA.timeSec}
+          tempActive={field === "A_TEMP"}
+          timeActive={field === "A_TIME"}
+        />
+
+        {/* Col 3: Zone B */}
+        <ZoneCol
+          label="ZONE B"
+          on={bOn}
+          temp={zoneB.temp}
+          timeSec={zoneB.timeSec}
+          tempActive={field === "B_TEMP"}
+          timeActive={field === "B_TIME"}
+        />
       </div>
-      <div className="flex-1 grid grid-cols-4 gap-1 items-center font-pixel">
-        {props.kind === "MANUAL" ? (
-          <>
-            <Param label="TEMP" value={`${props.temp}°C`} active={props.field === "TEMP"} />
-            <Param label="TIME" value={fmtTime(props.timeSec)} active={props.field === "TIME"} />
-            <Param label="ZONE" value={zoneLabel(props.zone)} active={props.field === "ZONE"} />
-            <Param label="" value="START ▶" hint="press ▶" emphasize />
-          </>
-        ) : (
-          <>
-            <Param label="QTY" value={`${props.quantity}`} active={props.field === "QTY"} />
-            <Param
-              label="THICK"
-              value={"▮".repeat(props.thickness) + "▯".repeat(3 - props.thickness)}
-              active={props.field === "THICK"}
-            />
-            <Param
-              label="OIL"
-              value={"▮".repeat(props.oil) + "▯".repeat(3 - props.oil)}
-              active={props.field === "OIL"}
-            />
-            <Param
-              label="ZONE"
-              value={isLockedZone ? "A+B" : zoneLabel(props.zone)}
-              active={!isLockedZone && props.field === "ZONE"}
-              hint={isLockedZone ? "LOCKED" : undefined}
-              dim={isLockedZone}
-            />
-          </>
-        )}
+    );
+  }
+
+  // AUTO (Dosa/Crepe)
+  const { quantity, thickness, oil, field } = props;
+  return (
+    <div className="h-full grid grid-cols-[30%_70%] gap-1 px-1 py-0.5 font-pixel">
+      <div className="flex flex-col items-center justify-center border-r border-lcd-pixel/30 pr-1">
+        <span className="text-[9px] leading-none opacity-70">MODE</span>
+        <Icon size={22} />
+        <span className="text-[12px] leading-none mt-0.5 uppercase">{props.mode.name}</span>
+        <span className="text-[8px] leading-none mt-1 opacity-70">A+B LOCKED</span>
+      </div>
+      <div className="grid grid-cols-3 gap-1 items-center">
+        <Param label="QTY" value={`${quantity}`} active={field === "QTY"} />
+        <Param
+          label="THICK"
+          value={"▮".repeat(thickness) + "▯".repeat(5 - thickness)}
+          active={field === "THICK"}
+        />
+        <Param label="OIL" value={OIL_LABELS[oil]} active={field === "OIL"} />
       </div>
     </div>
   );
 };
 
+const ZoneCol = ({
+  label,
+  on,
+  temp,
+  timeSec,
+  tempActive,
+  timeActive,
+}: {
+  label: string;
+  on: boolean;
+  temp: number;
+  timeSec: number;
+  tempActive: boolean;
+  timeActive: boolean;
+}) => (
+  <div className={`flex flex-col items-center justify-center px-1 ${on ? "" : "opacity-60"}`}>
+    <div className="flex items-center gap-1 leading-none">
+      <PlateIcon size={10} active={on} />
+      <span className="text-[10px]">{label}</span>
+      <span className="text-[9px] opacity-70">{on ? "ON" : "OFF"}</span>
+    </div>
+    <div className="flex items-center gap-2 mt-0.5">
+      <Param label="TEMP" value={`${temp}°`} active={tempActive} compact />
+      <Param label="TIME" value={fmtTime(timeSec)} active={timeActive} compact />
+    </div>
+  </div>
+);
+
 const Param = ({
   label,
   value,
-  hint,
   active,
-  emphasize,
-  dim,
+  compact,
 }: {
   label: string;
   value: string;
-  hint?: string;
   active?: boolean;
-  emphasize?: boolean;
-  dim?: boolean;
+  compact?: boolean;
 }) => (
   <div
-    className={`flex flex-col items-center justify-center text-center rounded-sm px-0.5 ${
+    className={`flex flex-col items-center justify-center text-center rounded-sm px-1 ${
       active ? "outline outline-1 outline-lcd-pixel" : ""
-    } ${dim ? "opacity-50" : ""}`}
+    }`}
   >
-    {label && <span className="text-[11px] leading-none opacity-80">{label}</span>}
-    <span
-      className={`text-[16px] leading-none my-0.5 ${
-        emphasize ? "lcd-blink" : active ? "lcd-blink" : ""
-      }`}
-    >
+    {label && <span className="text-[9px] leading-none opacity-80">{label}</span>}
+    <span className={`${compact ? "text-[13px]" : "text-[15px]"} leading-none my-0.5 ${active ? "lcd-blink" : ""}`}>
       {value}
     </span>
-    <span className="text-[9px] leading-none opacity-70">
-      {hint ?? (active ? "◀ ▶" : "")}
-    </span>
+    <span className="text-[8px] leading-none opacity-70">{active ? "▲▼" : ""}</span>
   </div>
 );
