@@ -1,16 +1,37 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { AppliancePanel } from "@/components/appliance/AppliancePanel";
+import { DebugPanel } from "@/components/appliance/DebugPanel";
+import { useApplianceFSM } from "@/hooks/useApplianceFSM";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const [api, setApi] = useState<ReturnType<typeof useApplianceFSM> | null>(null);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background text-foreground py-10 px-4">
+      <header className="max-w-[920px] mx-auto mb-6 text-center">
+        <h1 className="font-pixel text-3xl md:text-4xl tracking-widest text-primary">
+          DOT-MATRIX COOKING APPLIANCE
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Interactive 230 × 50 mm LCD control panel simulator
+        </p>
+      </header>
+
+      <main className="space-y-6">
+        <AppliancePanel onApiReady={setApi} />
+        {api && (
+          <div className="max-w-[920px] mx-auto">
+            <DebugPanel
+              injectError={api.injectError}
+              clearError={api.clearError}
+              setWifi={api.setWifi}
+              toggleZone={api.toggleZone}
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
