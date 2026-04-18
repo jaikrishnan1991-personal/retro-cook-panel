@@ -152,17 +152,17 @@ function reducer(s: State, a: Action): State {
     case "WIFI":
       return { ...s, wifi: a.wifi };
     case "TOGGLE_ZONE": {
-      // Debug helper: cycle which zones have time>0
       const order: Zone[] = ["A", "B", "BOTH"];
       const cur = deriveZone(s);
       const next = order[(order.indexOf(cur) + 1) % order.length];
       const def = 480;
-      return {
-        ...s,
-        zoneA: { ...s.zoneA, timeSec: next === "B" ? 0 : (s.zoneA.timeSec || def) },
-        zoneB: { ...s.zoneB, timeSec: next === "A" ? 0 : (s.zoneB.timeSec || def) },
-        zone: next,
-      };
+      const aOn = next !== "B";
+      const bOn = next !== "A";
+      const zA = { ...s.zoneA, timeSec: aOn ? (s.zoneA.timeSec || s.zoneA.lastTimeSec || def) : 0,
+        lastTimeSec: s.zoneA.timeSec || s.zoneA.lastTimeSec || def };
+      const zB = { ...s.zoneB, timeSec: bOn ? (s.zoneB.timeSec || s.zoneB.lastTimeSec || def) : 0,
+        lastTimeSec: s.zoneB.timeSec || s.zoneB.lastTimeSec || def };
+      return { ...s, zoneA: zA, zoneB: zB, zone: next };
     }
     case "INJECT_ERROR":
       return { ...s, prevState: s.state, state: "ERROR", error: a.code };
