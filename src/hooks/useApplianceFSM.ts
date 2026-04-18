@@ -10,6 +10,9 @@ import {
   Zone,
 } from "@/lib/appliance-types";
 
+export type ManualField = "TEMP" | "TIME" | "ZONE";
+export type AutoField = "QTY" | "THICK" | "OIL" | "ZONE";
+
 interface State {
   state: ApplianceState;
   prevState: ApplianceState | null;
@@ -21,14 +24,17 @@ interface State {
   quantity: number;
   thickness: number;
   oil: number;
+  // setup field cursor
+  manualField: ManualField;
+  autoField: AutoField;
   // running
   remainingSec: number;
-  progressPct: number; // 0-100 for auto modes
+  progressPct: number;
   // misc
   wifi: WifiState;
   zone: Zone;
-  childLockHoldStart: number | null; // timestamp
-  childLockProgress: number; // 0-1
+  childLockHoldStart: number | null;
+  childLockProgress: number;
   error: ErrorCode | null;
   bootProgress: number;
 }
@@ -44,6 +50,7 @@ type Action =
   | { type: "SET_LOCK_PROGRESS"; v: number }
   | { type: "ENTER_LOCK" }
   | { type: "EXIT_LOCK" }
+  | { type: "SET_ZONE"; zone: Zone }
   | { type: "TOGGLE_ZONE" };
 
 const initial: State = {
@@ -56,6 +63,8 @@ const initial: State = {
   quantity: 2,
   thickness: 2,
   oil: 2,
+  manualField: "TEMP",
+  autoField: "QTY",
   remainingSec: 0,
   progressPct: 0,
   wifi: "SEARCHING",
@@ -71,15 +80,24 @@ const getMode = (id: string | null): ApplianceMode | null =>
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
+const MANUAL_FIELDS: ManualField[] = ["TEMP", "TIME", "ZONE"];
+const AUTO_FIELDS_FORCED: AutoField[] = ["QTY", "THICK", "OIL"]; // Dosa/Crepe — zone locked to BOTH
+const AUTO_FIELDS_FULL: AutoField[] = ["QTY", "THICK", "OIL", "ZONE"];
+
+const cycleZone = (z: Zone, dir: 1 | -1): Zone => {
+  const order: Zone[] = ["A", "B", "BOTH"];
+  const i = order.indexOf(z);
+  const n = (i + dir + order.length) % order.length;
+  return order[n];
+};
+
 function reducer(s: State, a: Action): State {
   switch (a.type) {
     case "TICK": {
-      // BOOT progress
       if (s.state === "BOOT") {
         const next = Math.min(100, s.bootProgress + 4);
         return { ...s, bootProgress: next };
       }
-      // RUNNING countdown / progress
       if (s.state === "RUNNING") {
         const mode = getMode(s.selectedModeId);
         if (mode?.kind === "MANUAL") {
@@ -99,11 +117,10 @@ function reducer(s: State, a: Action): State {
       return { ...s, state: "MENU", bootProgress: 100 };
     case "WIFI":
       return { ...s, wifi: a.wifi };
+    case "SET_ZONE":
+      return { ...s, zone: a.zone };
     case "TOGGLE_ZONE":
-      return {
-        ...s,
-        zone: s.zone === "A" ? "B" : s.zone === "B" ? "BOTH" : "A",
-      };
+      return { ...s, zone: cycleZone(s.zone, 1) };
     case "INJECT_ERROR":
       return { ...s, prevState: s.state, state: "ERROR", error: a.code };
     case "CLEAR_ERROR":
@@ -117,9 +134,7 @@ function reducer(s: State, a: Action): State {
     case "EXIT_LOCK":
       return { ...s, state: s.prevState ?? "MENU", prevState: null, childLockProgress: 0, childLockHoldStart: null };
     case "PRESS": {
-      // Locked: ignore everything (lock hold handled outside)
       if (s.state === "LOCKED") return s;
-      // Error: only POWER or BACK clears
       if (s.state === "ERROR") {
         if (a.btn === "BACK" || a.btn === "POWER") {
           return { ...s, state: s.prevState ?? "MENU", error: null, prevState: null };
@@ -128,48 +143,73 @@ function reducer(s: State, a: Action): State {
       }
       switch (a.btn) {
         case "POWER":
-          // soft reset to menu
           return { ...s, state: "MENU", selectedModeId: null, remainingSec: 0, progressPct: 0 };
         case "UP":
+        case "DOWN": {
+          const dir = a.btn === "UP" ? -1 : 1;
           if (s.state === "MENU") {
-            return { ...s, cursorIndex: (s.cursorIndex - 1 + MODES.length) % MODES.length };
+            return { ...s, cursorIndex: (s.cursorIndex + dir + MODES.length) % MODES.length };
+          }
+          if (s.state === "MANUAL_SETUP") {
+            const i = MANUAL_FIELDS.indexOf(s.manualField);
+            const n = (i + dir + MANUAL_FIELDS.length) % MANUAL_FIELDS.length;
+            return { ...s, manualField: MANUAL_FIELDS[n] };
+          }
+          if (s.state === "AUTO_SETUP") {
+            const mode = getMode(s.selectedModeId);
+            const fields = mode && (mode.id === "dosa" || mode.id === "crepe") ? AUTO_FIELDS_FORCED : AUTO_FIELDS_FULL;
+            const i = Math.max(0, fields.indexOf(s.autoField));
+            const n = (i + dir + fields.length) % fields.length;
+            return { ...s, autoField: fields[n] };
           }
           return s;
-        case "DOWN":
-          if (s.state === "MENU") {
-            return { ...s, cursorIndex: (s.cursorIndex + 1) % MODES.length };
-          }
-          return s;
+        }
         case "LEFT":
         case "RIGHT": {
           const dir = a.btn === "LEFT" ? -1 : 1;
           if (s.state === "MANUAL_SETUP") {
             const mode = getMode(s.selectedModeId);
             if (!mode) return s;
-            const tempStep = mode.ranges?.temp?.[2] ?? 5;
-            const timeStep = mode.ranges?.timeSec?.[2] ?? 30;
-            return {
-              ...s,
-              temp: clamp(
-                s.temp + dir * tempStep,
-                mode.ranges?.temp?.[0] ?? 60,
-                mode.ranges?.temp?.[1] ?? 280,
-              ),
-              timeSec: s.timeSec,
-              ...({ _t: timeStep } as object),
-            } as State;
+            if (s.manualField === "TEMP") {
+              const r = mode.ranges?.temp ?? [60, 280, 5];
+              return { ...s, temp: clamp(s.temp + dir * r[2], r[0], r[1]) };
+            }
+            if (s.manualField === "TIME") {
+              const r = mode.ranges?.timeSec ?? [30, 3600, 30];
+              return { ...s, timeSec: clamp(s.timeSec + dir * r[2], r[0], r[1]) };
+            }
+            if (s.manualField === "ZONE") {
+              return { ...s, zone: cycleZone(s.zone, dir as 1 | -1) };
+            }
+            return s;
           }
           if (s.state === "AUTO_SETUP") {
             const mode = getMode(s.selectedModeId);
             if (!mode) return s;
-            const r = mode.ranges?.quantity ?? [1, 6, 1];
-            return { ...s, quantity: clamp(s.quantity + dir * r[2], r[0], r[1]) };
+            // Dosa/Crepe: zone forced to BOTH
+            if ((mode.id === "dosa" || mode.id === "crepe") && s.autoField === "ZONE") return s;
+            if (s.autoField === "QTY") {
+              const r = mode.ranges?.quantity ?? [1, 6, 1];
+              return { ...s, quantity: clamp(s.quantity + dir * r[2], r[0], r[1]) };
+            }
+            if (s.autoField === "THICK") {
+              const r = mode.ranges?.thickness ?? [1, 3, 1];
+              return { ...s, thickness: clamp(s.thickness + dir * r[2], r[0], r[1]) };
+            }
+            if (s.autoField === "OIL") {
+              const r = mode.ranges?.oil ?? [1, 3, 1];
+              return { ...s, oil: clamp(s.oil + dir * r[2], r[0], r[1]) };
+            }
+            if (s.autoField === "ZONE") {
+              return { ...s, zone: cycleZone(s.zone, dir as 1 | -1) };
+            }
           }
           return s;
         }
         case "SELECT": {
           if (s.state === "MENU") {
             const mode = MODES[s.cursorIndex];
+            const forcedZone: Zone | null = (mode.id === "dosa" || mode.id === "crepe") ? "BOTH" : null;
             return {
               ...s,
               selectedModeId: mode.id,
@@ -178,6 +218,9 @@ function reducer(s: State, a: Action): State {
               quantity: mode.defaults.quantity ?? s.quantity,
               thickness: mode.defaults.thickness ?? s.thickness,
               oil: mode.defaults.oil ?? s.oil,
+              manualField: "TEMP",
+              autoField: "QTY",
+              zone: forcedZone ?? s.zone,
               state: mode.kind === "AUTO" ? "AUTO_SETUP" : "MANUAL_SETUP",
             };
           }
@@ -218,7 +261,6 @@ const LOCK_HOLD_MS = 3000;
 export function useApplianceFSM() {
   const [state, dispatch] = useReducer(reducer, initial);
 
-  // physical button down map for combo detection (BACK + PAUSE)
   const downRef = useRef<Record<ButtonId, boolean>>({
     POWER: false, BACK: false, START: false, PAUSE: false,
     UP: false, DOWN: false, LEFT: false, RIGHT: false, SELECT: false,
@@ -226,14 +268,12 @@ export function useApplianceFSM() {
   const lockStartRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  // Boot sequence
   useEffect(() => {
     const t1 = setTimeout(() => dispatch({ type: "WIFI", wifi: "CONNECTED" }), 1800);
     const t2 = setTimeout(() => dispatch({ type: "BOOT_DONE" }), 2400);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // 1Hz tick for cooking countdown
   useEffect(() => {
     const id = setInterval(() => {
       dispatch({ type: "TICK", now: Date.now(), lockHeld: false });
@@ -241,14 +281,12 @@ export function useApplianceFSM() {
     return () => clearInterval(id);
   }, []);
 
-  // Boot progress faster tick
   useEffect(() => {
     if (state.state !== "BOOT") return;
     const id = setInterval(() => dispatch({ type: "TICK", now: Date.now(), lockHeld: false }), 80);
     return () => clearInterval(id);
   }, [state.state]);
 
-  // Auto-clear errors with autoClearMs
   useEffect(() => {
     if (state.state !== "ERROR" || !state.error) return;
     const def = ERROR_DETAILS[state.error];
@@ -258,7 +296,6 @@ export function useApplianceFSM() {
     }
   }, [state.state, state.error]);
 
-  // Lock combo loop using rAF
   useEffect(() => {
     const loop = () => {
       const both = downRef.current.BACK && downRef.current.PAUSE;
@@ -268,7 +305,6 @@ export function useApplianceFSM() {
         const progress = Math.min(1, elapsed / LOCK_HOLD_MS);
         dispatch({ type: "SET_LOCK_PROGRESS", v: progress });
         if (progress >= 1) {
-          // toggle
           if (state.state === "LOCKED") dispatch({ type: "EXIT_LOCK" });
           else dispatch({ type: "ENTER_LOCK" });
           lockStartRef.current = null;
