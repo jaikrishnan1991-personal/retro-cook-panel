@@ -277,13 +277,47 @@ export const PlateIcon = ({ active = true, ...props }: IconProps & { active?: bo
       <rect x={1} y={10} width={14} height={2} fill="currentColor" />
       {active && (
         <>
-          {/* heat waves */}
           <Pixel x={3} y={7} w={2} h={1} />
           <Pixel x={6} y={8} w={2} h={1} />
           <Pixel x={9} y={7} w={2} h={1} />
           <Pixel x={12} y={8} w={2} h={1} />
         </>
       )}
+    </>,
+    props,
+  );
+
+export const ThermoIcon = (props: IconProps) =>
+  wrap(
+    <>
+      <Pixel x={7} y={2} w={2} h={9} />
+      <Pixel x={6} y={11} w={4} h={1} />
+      <Pixel x={5} y={12} w={6} h={3} />
+      <Pixel x={6} y={15} w={4} h={1} />
+      <Pixel x={10} y={4} w={2} h={1} />
+      <Pixel x={10} y={7} w={2} h={1} />
+      <Pixel x={10} y={10} w={2} h={1} />
+    </>,
+    props,
+  );
+
+export const ClockIcon = (props: IconProps) =>
+  wrap(
+    <>
+      <Pixel x={5} y={1} w={6} h={1} />
+      <Pixel x={3} y={2} w={2} h={1} />
+      <Pixel x={11} y={2} w={2} h={1} />
+      <Pixel x={2} y={3} w={2} h={2} />
+      <Pixel x={12} y={3} w={2} h={2} />
+      <Pixel x={1} y={5} w={1} h={6} />
+      <Pixel x={14} y={5} w={1} h={6} />
+      <Pixel x={2} y={11} w={2} h={2} />
+      <Pixel x={12} y={11} w={2} h={2} />
+      <Pixel x={3} y={13} w={2} h={1} />
+      <Pixel x={11} y={13} w={2} h={1} />
+      <Pixel x={5} y={14} w={6} h={1} />
+      <Pixel x={7} y={5} w={1} h={4} />
+      <Pixel x={8} y={8} w={3} h={1} />
     </>,
     props,
   );
