@@ -1,5 +1,5 @@
 import { ApplianceMode, OIL_LABELS } from "@/lib/appliance-types";
-import { FOOD_ICON_MAP, PlateIcon } from "../icons";
+import { FOOD_ICON_MAP, ThermoIcon, ClockIcon } from "../icons";
 import { ManualField, AutoField } from "@/hooks/useApplianceFSM";
 
 interface ManualProps {
@@ -28,25 +28,15 @@ const fmtTime = (s: number) => {
 };
 
 export const SetupView = (props: Props) => {
-  const Icon = FOOD_ICON_MAP[props.mode.icon];
-
   if (props.kind === "MANUAL") {
-    const { zoneA, zoneB, field } = props;
+    const { mode, zoneA, zoneB, field } = props;
     const aOn = zoneA.timeSec > 0;
     const bOn = zoneB.timeSec > 0;
     return (
-      <div className="h-full grid grid-cols-[34%_33%_33%] gap-1 px-1 py-0.5 font-pixel">
-        {/* Col 1: Mode context */}
-        <div className="flex flex-col items-center justify-center border-r border-lcd-pixel/30 pr-1">
-          <span className="text-[9px] leading-none opacity-70">MODE</span>
-          <Icon size={20} />
-          <span className="text-[12px] leading-none mt-0.5 uppercase">{props.mode.name}</span>
-          <span className="text-[8px] leading-none mt-1 opacity-70">◀▶ FIELD · ▲▼ ADJ</span>
-        </div>
-
-        {/* Col 2: Zone A */}
-        <ZoneCol
-          label="ZONE A"
+      <div className="h-full flex flex-col font-pixel px-2 py-1">
+        <ZoneRow
+          modeName={mode.name}
+          plateLabel="TOP PLATE"
           on={aOn}
           temp={zoneA.temp}
           timeSec={zoneA.timeSec}
@@ -54,10 +44,10 @@ export const SetupView = (props: Props) => {
           tempActive={field === "A_TEMP"}
           timeActive={field === "A_TIME"}
         />
-
-        {/* Col 3: Zone B */}
-        <ZoneCol
-          label="ZONE B"
+        <div className="border-t lcd-divider my-0.5" />
+        <ZoneRow
+          modeName={mode.name}
+          plateLabel="BOTTOM PLATE"
           on={bOn}
           temp={zoneB.temp}
           timeSec={zoneB.timeSec}
@@ -69,31 +59,33 @@ export const SetupView = (props: Props) => {
     );
   }
 
-  // AUTO (Dosa/Crepe)
-  const { quantity, thickness, oil, field } = props;
+  // AUTO (Dosa/Crepe) — bigger, evenly spaced row layout
+  const { mode, quantity, thickness, oil, field } = props;
+  const Icon = FOOD_ICON_MAP[mode.icon];
   return (
-    <div className="h-full grid grid-cols-[30%_70%] gap-1 px-1 py-0.5 font-pixel">
-      <div className="flex flex-col items-center justify-center border-r border-lcd-pixel/30 pr-1">
-        <span className="text-[9px] leading-none opacity-70">MODE</span>
-        <Icon size={22} />
-        <span className="text-[12px] leading-none mt-0.5 uppercase">{props.mode.name}</span>
-        <span className="text-[8px] leading-none mt-1 opacity-70">A+B LOCKED</span>
+    <div className="h-full grid grid-cols-[28%_72%] gap-2 px-2 py-1 font-pixel">
+      <div className="flex flex-col items-center justify-center border-r lcd-divider pr-2">
+        <span className="text-[20px] leading-none uppercase tracking-wide">{mode.name}</span>
+        <Icon size={28} />
+        <span className="text-[10px] leading-none mt-1 opacity-70">A + B LOCKED</span>
       </div>
-      <div className="grid grid-cols-3 gap-1 items-center">
-        <Param label="QTY" value={`${quantity}`} active={field === "QTY"} />
-        <Param
+      <div className="grid grid-cols-3 items-center h-full">
+        <BigParam label="QTY" value={`${quantity}`} active={field === "QTY"} />
+        <BigParam
           label="THICK"
           value={"▮".repeat(thickness) + "▯".repeat(5 - thickness)}
           active={field === "THICK"}
+          mono
         />
-        <Param label="OIL" value={OIL_LABELS[oil]} active={field === "OIL"} />
+        <BigParam label="OIL" value={OIL_LABELS[oil]} active={field === "OIL"} />
       </div>
     </div>
   );
 };
 
-const ZoneCol = ({
-  label,
+const ZoneRow = ({
+  modeName,
+  plateLabel,
   on,
   temp,
   timeSec,
@@ -101,7 +93,8 @@ const ZoneCol = ({
   tempActive,
   timeActive,
 }: {
-  label: string;
+  modeName: string;
+  plateLabel: string;
   on: boolean;
   temp: number;
   timeSec: number;
@@ -109,46 +102,83 @@ const ZoneCol = ({
   tempActive: boolean;
   timeActive: boolean;
 }) => (
-  <div className={`flex flex-col items-center justify-center px-1 ${on ? "" : "opacity-70"}`}>
-    <div className="flex items-center gap-1 leading-none">
-      <PlateIcon size={10} active={on} />
-      <span className="text-[10px]">{label}</span>
+  <div className={`flex-1 grid grid-cols-[34%_8%_29%_29%] items-center gap-1 ${on ? "" : "opacity-55"}`}>
+    {/* Mode + plate label */}
+    <div className="flex flex-col leading-none">
+      <span className="text-[20px] uppercase tracking-tight">{modeName}</span>
+      <span className="text-[10px] opacity-80 mt-0.5">{plateLabel}</span>
       <span
-        className={`text-[9px] px-1 rounded-sm ${
-          onActive ? "outline outline-1 outline-lcd-pixel lcd-blink" : "opacity-80"
+        className={`text-[10px] mt-0.5 lcd-chip self-start ${
+          onActive ? "lcd-blink" : ""
         }`}
-        title="▲▼ to toggle ON/OFF"
+        title="▲▼ to toggle"
       >
         {on ? "ON" : "OFF"}
       </span>
     </div>
-    <div className="flex items-center gap-2 mt-0.5">
-      <Param label="TEMP" value={`${temp}°`} active={tempActive} compact />
-      <Param label="TIME" value={fmtTime(timeSec)} active={timeActive} compact />
+    {/* Thermo icon column */}
+    <div className="flex justify-center">
+      <ThermoIcon size={22} />
     </div>
+    {/* Temp */}
+    <BigField
+      label="Temp"
+      icon={null}
+      value={on ? `${temp}°C` : "---"}
+      active={tempActive}
+    />
+    {/* Time */}
+    <BigField
+      label="Time"
+      icon={<ClockIcon size={11} />}
+      value={on ? fmtTime(timeSec) : "--:--"}
+      active={timeActive}
+    />
   </div>
 );
 
-const Param = ({
+const BigField = ({
+  label,
+  icon,
+  value,
+  active,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  active?: boolean;
+}) => (
+  <div className={`flex flex-col leading-none px-1 ${active ? "outline outline-1 outline-lcd-pixel rounded-sm" : ""}`}>
+    <span className="flex items-center gap-1 text-[10px] opacity-80">
+      {icon}
+      {label}
+    </span>
+    <span className={`text-[22px] leading-none mt-0.5 ${active ? "lcd-blink" : ""}`}>
+      {value}
+    </span>
+  </div>
+);
+
+const BigParam = ({
   label,
   value,
   active,
-  compact,
+  mono,
 }: {
   label: string;
   value: string;
   active?: boolean;
-  compact?: boolean;
+  mono?: boolean;
 }) => (
   <div
-    className={`flex flex-col items-center justify-center text-center rounded-sm px-1 ${
+    className={`flex flex-col items-center justify-center text-center rounded-sm px-1 py-1 ${
       active ? "outline outline-1 outline-lcd-pixel" : ""
     }`}
   >
-    {label && <span className="text-[9px] leading-none opacity-80">{label}</span>}
-    <span className={`${compact ? "text-[13px]" : "text-[15px]"} leading-none my-0.5 ${active ? "lcd-blink" : ""}`}>
+    <span className="text-[11px] leading-none opacity-80">{label}</span>
+    <span className={`${mono ? "text-[18px] tracking-widest" : "text-[22px]"} leading-none mt-1 ${active ? "lcd-blink" : ""}`}>
       {value}
     </span>
-    <span className="text-[8px] leading-none opacity-70">{active ? "▲▼" : ""}</span>
+    <span className="text-[9px] leading-none opacity-70 mt-0.5">{active ? "▲▼" : ""}</span>
   </div>
 );
