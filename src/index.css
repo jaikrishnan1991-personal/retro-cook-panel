@@ -101,11 +101,22 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(hsl(var(--lcd-shadow) / 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--lcd-shadow) / 0.08) 1px, transparent 1px);
-    background-size: 3px 3px;
+      linear-gradient(hsl(var(--lcd-shadow) / 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--lcd-shadow) / 0.06) 1px, transparent 1px);
+    background-size: 4px 4px;
     pointer-events: none;
     z-index: 1;
+  }
+
+  .lcd-divider {
+    border-color: hsl(var(--lcd-pixel) / 0.35);
+  }
+
+  .lcd-chip {
+    border: 1px solid hsl(var(--lcd-pixel));
+    padding: 0 4px;
+    border-radius: 2px;
+    line-height: 1;
   }
 
   .lcd-surface::after {
